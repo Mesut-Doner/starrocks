@@ -646,7 +646,7 @@ public:
     //    DEFINE_VECTORIZED_FN(day_name);
 
     /**
-     * Format TimestampValue using JodaTime’s date time format
+     * Format TimestampValue using JodaTime's date time format
      * @param context
      * @param columns [TimestampColumn, BinaryColumn of TYPE_VARCHAR] The first column holds the timestamp, the second column holds the format.
      * @return  BinaryColumn of TYPE_VARCHAR.
@@ -654,7 +654,7 @@ public:
     DEFINE_VECTORIZED_FN(jodadatetime_format);
 
     /**
-     * Format DateValue using JodaTime’s date time format
+     * Format DateValue using JodaTime's date time format
      * @param context
      * @param columns [DateColumn, BinaryColumn of TYPE_VARCHAR] The first column holds the date, the second column holds the format.
      * @return  BinaryColumn of TYPE_VARCHAR.
@@ -680,6 +680,23 @@ public:
      */
     DEFINE_VECTORIZED_FN(to_unix_from_datetime_64);
     DEFINE_VECTORIZED_FN(to_unix_from_datetime_32);
+    DEFINE_VECTORIZED_FN(to_unix_from_datetime_ms_64);
+
+    /**
+     * Convert Unix timestamp to datetime with specified scale
+     * @param: [unix_time, scale (optional, default 0)]
+     * @paramType columns: [BigIntColumn, IntColumn (optional)]
+     * @return TimestampColumn
+     */
+    DEFINE_VECTORIZED_FN(unix_to_datetime);
+
+    /**
+     * Convert Unix millisecond timestamp to datetime
+     * @param: [unix_time_ms, scale (optional, default 3)]
+     * @paramType columns: [BigIntColumn, IntColumn (optional)]
+     * @return TimestampColumn
+     */
+    DEFINE_VECTORIZED_FN(unix_ms_to_datetime);
 
     /**
      * @param: [date]

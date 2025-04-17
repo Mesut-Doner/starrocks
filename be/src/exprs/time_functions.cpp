@@ -26,6 +26,9 @@
 #include "runtime/datetime_value.h"
 #include "runtime/runtime_state.h"
 #include "types/date_value.h"
+#include <cctz/time_zone.h>
+#include <cmath>
+#include <cstdio>
 
 namespace starrocks {
 // index as day of week(1: Sunday, 2: Monday....), value as distance of this day and first day(Monday) of this week.
@@ -3309,6 +3312,99 @@ StatusOr<ColumnPtr> TimeFunctions::time_format(FunctionContext* context, const s
     }
 
     return builder.build(ColumnHelper::is_all_const(columns));
+}
+
+StatusOr<ColumnPtr> TimeFunctions::unix_to_datetime(FunctionContext* context, const Columns& columns) {
+    DCHECK(columns.size() == 1 || columns.size() == 2);
+    RETURN_IF_COLUMNS_ONLY_NULL(columns);
+
+    auto unix_time_viewer = ColumnViewer<TYPE_BIGINT>(columns[0]);
+    int scale = 0;
+    bool has_scale_column = columns.size() > 1;
+
+    if (has_scale_column) {
+        if (columns[1]->only_null()) {
+            return nullptr;
+        }
+
+        if (columns[1]->is_constant()) {
+            scale = ColumnHelper::get_const_value<TYPE_INT>(columns[1]);
+            if (scale != 0 && scale != 3 && scale != 6) {
+                return Status::InvalidArgument("Scale must be 0 (second), 3 (millisecond), or 6 (microsecond)");
+            }
+        } else {
+            return Status::InvalidArgument("Scale must be a constant value");
+        }
+    }
+
+    auto size = columns[0]->size();
+    ColumnBuilder<TYPE_DATETIME> result(size);
+
+    int64_t divisor = 1;
+    int64_t remainder_multiplier = 1;
+    if (scale == 3) {
+        divisor = 1000;
+        remainder_multiplier = 1000;
+    } else if (scale == 6) {
+        divisor = 1000000;
+        remainder_multiplier = 1;
+    }
+
+    for (int row = 0; row < size; ++row) {
+        if (unix_time_viewer.is_null(row)) {
+            result.append_null();
+            continue;
+        }
+
+        int64_t unix_time = unix_time_viewer.value(row);
+        int64_t seconds = unix_time;
+        int usec = 0;
+
+        if (scale > 0) {
+            seconds = unix_time / divisor;
+            usec = (unix_time % divisor) * remainder_multiplier;
+        }
+
+        if (seconds < 0 || seconds > MAX_UNIX_TIMESTAMP) {
+            result.append_null();
+            continue;
+        }
+
+        TimestampValue ts_value;
+        
+        if (context != nullptr && context->state() != nullptr) {
+            cctz::time_zone tz;
+            bool loaded = cctz::load_time_zone(context->state()->timezone(), &tz);
+            if (loaded) {
+                ts_value.from_unixtime(seconds, usec, tz);
+            } else {
+                ts_value.from_unixtime(seconds, usec, cctz::utc_time_zone());
+            }
+        } else {
+            ts_value.from_unixtime(seconds, usec, cctz::utc_time_zone());
+        }
+        
+        result.append(ts_value);
+    }
+
+    return result.build(ColumnHelper::is_all_const(columns));
+}
+
+StatusOr<ColumnPtr> TimeFunctions::unix_ms_to_datetime(FunctionContext* context, const Columns& columns) {
+    DCHECK(columns.size() == 1 || columns.size() == 2);
+    RETURN_IF_COLUMNS_ONLY_NULL(columns);
+
+    Columns new_columns;
+    new_columns.push_back(columns[0]);
+    
+    if (columns.size() == 1) {
+        auto scale_column = ColumnHelper::create_const_column<TYPE_INT>(3, columns[0]->size());
+        new_columns.push_back(scale_column);
+    } else {
+        new_columns.push_back(columns[1]);
+    }
+    
+    return unix_to_datetime(context, new_columns);
 }
 
 } // namespace starrocks
