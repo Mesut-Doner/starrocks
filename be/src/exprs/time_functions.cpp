@@ -3350,6 +3350,14 @@ StatusOr<ColumnPtr> TimeFunctions::unix_to_datetime(FunctionContext* context, co
         remainder_multiplier = 1;
     }
 
+    // geting timezone from context or use system default
+    cctz::time_zone tz;
+    if (context != nullptr && context->state() != nullptr) {
+        tz = context->state()->timezone_obj();
+    } else {
+        tz = TimezoneUtils::local_time_zone();
+    }
+
     for (int row = 0; row < size; ++row) {
         if (unix_time_viewer.is_null(row)) {
             result.append_null();
@@ -3371,19 +3379,7 @@ StatusOr<ColumnPtr> TimeFunctions::unix_to_datetime(FunctionContext* context, co
         }
 
         TimestampValue ts_value;
-        
-        if (context != nullptr && context->state() != nullptr) {
-            cctz::time_zone tz;
-            bool loaded = cctz::load_time_zone(context->state()->timezone(), &tz);
-            if (loaded) {
-                ts_value.from_unixtime(seconds, usec, tz);
-            } else {
-                ts_value.from_unixtime(seconds, usec, cctz::utc_time_zone());
-            }
-        } else {
-            ts_value.from_unixtime(seconds, usec, cctz::utc_time_zone());
-        }
-        
+        ts_value.from_unixtime(seconds, usec, tz);
         result.append(ts_value);
     }
 
