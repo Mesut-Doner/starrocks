@@ -737,4 +737,63 @@ abcabc	abc	2	4
 hello world	world	1	7
 hello world	world	-1	7
 -- !result
+select format_bytes(123);
+-- result:
+123 B
+-- !result
+select format_bytes(4096);
+-- result:
+4.00 KB
+-- !result
+select format_bytes(123456789);
+-- result:
+117.74 MB
+-- !result
+select format_bytes(10737418240);
+-- result:
+10.00 GB
+-- !result
+select format_bytes(1099511627776);
+-- result:
+1.00 TB
+-- !result
+select format_bytes(-123456);
+-- result:
+-120.56 KB
+-- !result
+select format_bytes(0);
+-- result:
+0 B
+-- !result
+select format_bytes(1024);
+-- result:
+1.00 KB
+-- !result
+select format_bytes(1048576);
+-- result:
+1.00 MB
+-- !result
+select format_bytes(1073741824);
+-- result:
+1.00 GB
+-- !result
+select format_bytes(1023);
+-- result:
+1023 B
+-- !result
+select format_bytes(1536);
+-- result:
+1.50 KB
+-- !result
+select bytes_col, format_bytes(bytes_col) from t_format_bytes order by bytes_col;
+-- result:
+-123456	-120.56 KB
+0	0 B
+123	123 B
+1024	1.00 KB
+4096	4.00 KB
+1048576	1.00 MB
+10737418240	10.00 GB
+123456789	117.74 MB
+-- !result
 

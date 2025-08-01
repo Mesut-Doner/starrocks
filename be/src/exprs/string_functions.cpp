@@ -4515,6 +4515,72 @@ StatusOr<ColumnPtr> StringFunctions::money_format_decimalv2val(FunctionContext* 
     return result.build(ColumnHelper::is_all_const(columns));
 }
 
+StatusOr<ColumnPtr> StringFunctions::format_bytes(FunctionContext* context, const starrocks::Columns& columns) {
+    auto bytes_viewer = ColumnViewer<TYPE_BIGINT>(columns[0]);
+    auto size = columns[0]->size();
+    ColumnBuilder<TYPE_VARCHAR> result(size);
+    
+    // Unit thresholds using 1024-based system
+    static const int64_t KB = 1024LL;
+    static const int64_t MB = KB * 1024LL;
+    static const int64_t GB = MB * 1024LL;
+    static const int64_t TB = GB * 1024LL;
+    static const int64_t PB = TB * 1024LL;
+    
+    for (int row = 0; row < size; ++row) {
+        if (bytes_viewer.is_null(row)) {
+            result.append_null();
+            continue;
+        }
+        
+        int64_t bytes = bytes_viewer.value(row);
+        std::string formatted;
+        
+        // Handle negative bytes by converting to positive and adding minus sign
+        bool is_negative = bytes < 0;
+        int64_t abs_bytes = is_negative ? -bytes : bytes;
+        
+        // Format the absolute value
+        if (abs_bytes < KB) {
+            formatted = std::to_string(abs_bytes) + " B";
+        } else if (abs_bytes < MB) {
+            double value = static_cast<double>(abs_bytes) / KB;
+            std::ostringstream ss;
+            ss << std::fixed << std::setprecision(2) << value << " KB";
+            formatted = ss.str();
+        } else if (abs_bytes < GB) {
+            double value = static_cast<double>(abs_bytes) / MB;
+            std::ostringstream ss;
+            ss << std::fixed << std::setprecision(2) << value << " MB";
+            formatted = ss.str();
+        } else if (abs_bytes < TB) {
+            double value = static_cast<double>(abs_bytes) / GB;
+            std::ostringstream ss;
+            ss << std::fixed << std::setprecision(2) << value << " GB";
+            formatted = ss.str();
+        } else if (abs_bytes < PB) {
+            double value = static_cast<double>(abs_bytes) / TB;
+            std::ostringstream ss;
+            ss << std::fixed << std::setprecision(2) << value << " TB";
+            formatted = ss.str();
+        } else {
+            double value = static_cast<double>(abs_bytes) / PB;
+            std::ostringstream ss;
+            ss << std::fixed << std::setprecision(2) << value << " PB";
+            formatted = ss.str();
+        }
+        
+        // Add negative sign if needed
+        if (is_negative) {
+            formatted = "-" + formatted;
+        }
+        
+        result.append(Slice(formatted.data(), formatted.size()));
+    }
+    
+    return result.build(ColumnHelper::is_all_const(columns));
+}
+
 // regex method
 Status StringFunctions::parse_url_prepare(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
     if (scope != FunctionContext::FRAGMENT_LOCAL) {

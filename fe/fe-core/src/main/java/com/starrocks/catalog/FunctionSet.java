@@ -221,6 +221,7 @@ public class FunctionSet {
     public static final String UPPER = "upper";
     public static final String SUBSTRING_INDEX = "substring_index";
     public static final String FIELD = "field";
+    public static final String FORMAT_BYTES = "format_bytes";
 
     // Json functions:
     public static final String JSON_ARRAY = "json_array";

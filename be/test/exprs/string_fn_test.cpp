@@ -4243,4 +4243,51 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpCountTest) {
         ASSERT_EQ(result->get(1).get_int64(), 3);
     }
 }
+
+PARALLEL_TEST(VecStringFunctionsTest, formatBytes) {
+    std::unique_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
+
+    // Test various byte values 
+    int64_t bytes[] = {
+        123,                    // 123 B
+        4096,                   // 4 KB  
+        123456789,              // 117.74 MB
+        10737418240LL,          // 10 GB
+        1099511627776LL,        // 1 TB
+        -123456,                // -120.56 KB (negative)
+        0,                      // 0 B
+        1024,                   // 1 KB exactly
+        1048576,                // 1 MB exactly  
+        1073741824              // 1 GB exactly
+    };
+    
+    std::string results[] = {
+        "123 B",
+        "4.00 KB", 
+        "117.74 MB",
+        "10.00 GB",
+        "1.00 TB",
+        "-120.56 KB",
+        "0 B",
+        "1.00 KB",
+        "1.00 MB",
+        "1.00 GB"
+    };
+
+    Columns columns;
+    Int64Column::Ptr byte_column = Int64Column::create();
+
+    for (int64_t byte_val : bytes) {
+        byte_column->append(byte_val);
+    }
+
+    columns.emplace_back(byte_column);
+    ColumnPtr result = StringFunctions::format_bytes(ctx.get(), columns).value();
+    auto v = ColumnHelper::as_raw_column<BinaryColumn>(result);
+
+    for (int i = 0; i < sizeof(bytes) / sizeof(bytes[0]); ++i) {
+        ASSERT_EQ(results[i], v->get_data()[i].to_string());
+    }
+}
+
 } // namespace starrocks

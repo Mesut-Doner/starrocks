@@ -294,3 +294,25 @@ insert into t_strpos values ('hello world', 'world', 1), ('hello world', 'world'
 select c0, c1, strpos(c0, c1) from t_strpos;
 select c0, c1, c2, strpos(c0, c1, c2) from t_strpos;
 
+-- function: format_bytes
+select format_bytes(123);
+select format_bytes(4096);
+select format_bytes(123456789);
+select format_bytes(10737418240);
+select format_bytes(1099511627776);
+select format_bytes(-123456);
+select format_bytes(0);
+select format_bytes(1024);
+select format_bytes(1048576);
+select format_bytes(1073741824);
+select format_bytes(1023);
+select format_bytes(1536);
+
+create table t_format_bytes(bytes_col BIGINT)
+        DUPLICATE KEY(bytes_col)
+        DISTRIBUTED BY HASH(bytes_col)
+        BUCKETS 1
+        PROPERTIES('replication_num'='1');
+insert into t_format_bytes values (0), (123), (1024), (4096), (123456789), (10737418240), (-123456), (1048576);
+select bytes_col, format_bytes(bytes_col) from t_format_bytes order by bytes_col;
+
